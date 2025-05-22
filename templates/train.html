@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Train Model - Federated Learning System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .client-warning {
+        display: none;
+        color: #dc3545;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- Training Summary Card -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Training Configuration Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3 mb-2">
+                        <strong>Total Datasets</strong><br>
+                        <span class="badge bg-primary" id="totalClients">{{ client_files|length }}</span>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <strong>Number of Clients</strong><br>
+                        <span class="badge bg-success" id="summaryNumClients">2</span>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <strong>Rounds</strong><br>
+                        <span class="badge bg-info" id="summaryRounds">4</span>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <strong>Epochs</strong><br>
+                        <span class="badge bg-info" id="summaryEpochs">10</span>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <strong>Batch Size</strong><br>
+                        <span class="badge bg-info" id="summaryBatch">32</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Train Federated Model</h5>
+            </div>
+            <div class="card-body">
+                {% if client_files|length == 0 %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No client data available. Please <a href="{{ url_for('add_client') }}">add client data</a> before training.
+                </div>
+                {% endif %}
+                
+                <form method="POST" id="training-form">
+                    <!-- Number of Clients -->
+                    <div class="mb-4">
+                        <label for="num_clients" class="form-label">Number of Clients</label>
+                        <input type="number"
+                               class="form-control"
+                               id="num_clients"
+                               name="num_clients"
+                               value="{% if client_files|length > 0 %}2{% else %}0{% endif %}"
+                               min="1"
+                               required>
+                        <div class="form-text">Specify how many clients to use for federated learning</div>
+                        <div class="client-warning" id="client-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            You have specified more clients than available datasets. The system will use all available datasets.
+                        </div>
+                    </div>
+                    <!-- Training Parameters -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="epochs" class="form-label">Epochs per Round</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="epochs" 
+                                   name="epochs" 
+                                   value="10" 
+                                   min="1" 
+                                   max="50"
+                                   required>
+                            <div class="form-text">Number of training epochs per round</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="batch_size" class="form-label">Batch Size</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="batch_size" 
+                                   name="batch_size" 
+                                   value="32" 
+                                   min="8" 
+                                   max="128"
+                                   required>
+                            <div class="form-text">Size of training batches</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="num_rounds" class="form-label">Number of Rounds</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   id="num_rounds" 
+                                   name="num_rounds" 
+                                   value="4" 
+                                   min="1" 
+                                   max="10"
+                                   required>
+                            <div class="form-text">Number of federated learning rounds</div>
+                        </div>
+                    </div>
+                    <!-- Model Architecture -->
+                    <div class="mb-4">
+                        <h6>Model Architecture (Fixed):</h6>
+                        <ul class="list-group">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Embedding Dimension
+                                <span class="badge bg-primary rounded-pill">96</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                LSTM Units
+                                <span class="badge bg-primary rounded-pill">192</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Dropout Rate
+                                <span class="badge bg-primary rounded-pill">0.25</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" 
+                                class="btn btn-primary" 
+                                id="start-training-btn"
+                                {% if client_files|length == 0 %}disabled{% endif %}>
+                            Start Training
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Training Information -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Training Information</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    The training process will:
+                </p>
+                <ul class="list-unstyled">
+                    <li>✓ Process data from selected clients</li>
+                    <li>✓ Train local models on each client's data</li>
+                    <li>✓ Aggregate models using federated averaging</li>
+                    <li>✓ Save the final global model</li>
+                </ul>
+                <div class="alert alert-info">
+                    <small>
+                        <i class="fas fa-info-circle"></i>
+                        Training progress will be shown on the next page. You can monitor the process and view metrics.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Update summary values for number of clients, rounds, epochs, batch size
+    function updateSummaryValues() {
+        document.getElementById('summaryNumClients').textContent = document.getElementById('num_clients').value;
+        document.getElementById('summaryRounds').textContent = document.getElementById('num_rounds').value;
+        document.getElementById('summaryEpochs').textContent = document.getElementById('epochs').value;
+        document.getElementById('summaryBatch').textContent = document.getElementById('batch_size').value;
+        
+        // Check if number of clients is valid
+        const numClients = parseInt(document.getElementById('num_clients').value);
+        const totalClients = parseInt(document.getElementById('totalClients').textContent);
+        const warningElement = document.getElementById('client-warning');
+        
+        if (numClients > totalClients && totalClients > 0) {
+            warningElement.style.display = 'block';
+        } else {
+            warningElement.style.display = 'none';
+        }
+    }
+    
+    // Add event listeners
+    document.getElementById('num_clients').addEventListener('input', updateSummaryValues);
+    document.getElementById('num_rounds').addEventListener('input', updateSummaryValues);
+    document.getElementById('epochs').addEventListener('input', updateSummaryValues);
+    document.getElementById('batch_size').addEventListener('input', updateSummaryValues);
+    
+    // Form validation
+    document.getElementById('training-form').addEventListener('submit', function(event) {
+        const numClients = parseInt(document.getElementById('num_clients').value);
+        const totalClients = parseInt(document.getElementById('totalClients').textContent);
+        
+        if (numClients < 1) {
+            alert('Number of clients must be at least 1');
+            event.preventDefault();
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Initial update
+    updateSummaryValues();
+</script>
+{% endblock %} 
