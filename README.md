@@ -26,8 +26,8 @@ This project implements a federated learning system for next word prediction, wh
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/privacytype.git
-   cd privacytype
+   git clone https://github.com/AdityaC784/PrivacyType.git
+   cd PrivacyType
    ```
 
 2. Install dependencies:
