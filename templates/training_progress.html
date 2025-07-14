@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Training Progress - Federated Learning System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metric-card {
+        border-radius: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .progress {
+        height: 1.5rem;
+        border-radius: 1rem;
+        background-color: #e9ecef;
+        margin: 1rem 0;
+    }
+    
+    .progress-bar {
+        border-radius: 1rem;
+        transition: width 0.6s ease;
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        font-weight: 500;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .training-complete {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(25, 135, 84, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    function updateProgress() {
+        if (document.hidden) return;
+        
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Check if data has valid structure
+            if (!data || !data.logs || !data.config) {
+                console.error('Invalid data format received');
+                return;
+            }
+            
+            // Update progress bars - handle potential zero/undefined values
+            const currentRound = data.logs.current_round || 0;
+            const totalRounds = data.config.num_rounds || 1;
+            const currentEpoch = data.logs.current_epoch || 0;
+            const totalEpochs = data.config.epochs || 1;
+            
+            updateProgressBar('round-progress', currentRound, totalRounds);
+            updateProgressBar('epoch-progress', currentEpoch, totalEpochs);
+            
+            // Update metrics
+            updateMetric('current-round', currentRound);
+            updateMetric('current-epoch', currentEpoch);
+            updateMetric('validation-accuracy', ((data.logs.validation_accuracy || 0) * 100).toFixed(2) + '%');
+            
+            // Update status message
+            document.getElementById('status-message').textContent = data.logs.status_message || 'Waiting for status...';
+            
+            // Check if training is complete
+            if (data.logs.training_complete) {
+                clearInterval(refreshInterval);
+                document.getElementById('training-status').classList.add('training-complete');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating progress:', error);
+            // Don't stop retrying on error
+        });
+    }
+    
+    function updateProgressBar(id, current, total) {
+        const progress = document.getElementById(id);
+        if (!progress) return;
+        
+        const percentage = Math.min(Math.max((current / total * 100), 0), 100).toFixed(1);
+        progress.style.width = percentage + '%';
+        progress.textContent = `${current}/${total}`;
+    }
+    
+    function updateMetric(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
+    }
+    
+    // Update every 5 seconds
+    const refreshInterval = setInterval(updateProgress, 5000);
+    
+    // Update when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            updateProgress();
+        }
+    });
+    
+    // Initial update
+    updateProgress();
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="display-5 mb-2">Model Training Progress</h1>
+            <p class="text-muted">
+                <i class="fas fa-sync me-2"></i>Auto-updating every 5 seconds
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div id="training-status" class="status-badge {% if logs.training_complete %}bg-success text-white{% else %}bg-warning text-dark{% endif %}">
+                <i class="fas {% if logs.training_complete %}fa-check-circle{% else %}fa-spinner fa-spin{% endif %} me-2"></i>
+                <span id="status-message">{{ logs.status_message }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Configuration -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cogs me-2"></i>Training Configuration
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="metric-card p-3 bg-light">
+                        <div class="metric-label">
+                            <i class="fas fa-users me-2"></i>Active Clients
+                        </div>
+                        <div class="metric-value">{{ config.clients|length }}</div>
+                        <div class="small text-muted">{{ config.clients|join(', ') }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="metric-card p-3 bg-light">
+                        <div class="metric-label">
+                            <i class="fas fa-redo me-2"></i>Epochs per Round
+                        </div>
+                        <div class="metric-value">{{ config.epochs }}</div>
+                        <div class="small text-muted">Training iterations</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="metric-card p-3 bg-light">
+                        <div class="metric-label">
+                            <i class="fas fa-layer-group me-2"></i>Batch Size
+                        </div>
+                        <div class="metric-value">{{ config.batch_size }}</div>
+                        <div class="small text-muted">Samples per batch</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <div class="metric-card p-3 bg-light">
+                        <div class="metric-label">
+                            <i class="fas fa-sync me-2"></i>Total Rounds
+                        </div>
+                        <div class="metric-value">{{ config.num_rounds }}</div>
+                        <div class="small text-muted">Federation cycles</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Progress -->
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-line me-2"></i>Real-time Training Metrics
+            </h5>
+        </div>
+        <div class="card-body">
+            <!-- Progress Bars -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-sync me-2"></i>Round Progress</h6>
+                    <div class="progress">
+                        <div class="progress-bar bg-primary" id="round-progress" role="progressbar"
+                             style="width: {{ (logs.current_round / config.num_rounds * 100)|round }}%"
+                        >Round {{ logs.current_round }}/{{ config.num_rounds }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-clock me-2"></i>Epoch Progress</h6>
+                    <div class="progress">
+                        <div class="progress-bar bg-success" id="epoch-progress" role="progressbar"
+                             style="width: {{ (logs.current_epoch / config.epochs * 100)|round }}%"
+                        >Epoch {{ logs.current_epoch }}/{{ config.epochs }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Metrics -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="metric-card p-4 bg-light text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-sync-alt me-2"></i>Current Round
+                        </div>
+                        <div class="metric-value" id="current-round">{{ logs.current_round }}</div>
+                        <div class="small text-muted">of {{ config.num_rounds }} total rounds</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card p-4 bg-light text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-clock me-2"></i>Current Epoch
+                        </div>
+                        <div class="metric-value" id="current-epoch">{{ logs.current_epoch }}</div>
+                        <div class="small text-muted">of {{ config.epochs }} epochs per round</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card p-4 bg-light text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-chart-line me-2"></i>Validation Accuracy
+                        </div>
+                        <div class="metric-value" id="validation-accuracy">
+                            {{ "%.2f"|format(logs.validation_accuracy * 100) }}%
+                        </div>
+                        <div class="small text-muted">Current model performance</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if logs.history %}
+            <!-- Training History -->
+            <div class="mt-4">
+                <h6 class="mb-3">
+                    <i class="fas fa-history me-2"></i>Training History
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Round</th>
+                                <th>Epoch</th>
+                                <th>Training Loss</th>
+                                <th>Validation Loss</th>
+                                <th>Validation Accuracy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in logs.history[-5:] %}
+                            <tr>
+                                <td>{{ entry.round }}</td>
+                                <td>{{ entry.epoch }}</td>
+                                <td>{{ "%.4f"|format(entry.train_loss) }}</td>
+                                <td>{{ "%.4f"|format(entry.val_loss) }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if entry.val_accuracy > 0.7 else 'warning' }}">
+                                        {{ "%.2f"|format(entry.val_accuracy * 100) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if logs.training_complete %}
+    <div class="text-center mt-4">
+        <a href="{{ url_for('predict') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-magic me-2"></i>Start Making Predictions
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}View Client Data - Federated Learning System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .data-card {
+        border-radius: 15px;
+        border: none;   
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .data-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .metric-card {
+        border-radius: 15px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 1px solid rgba(67, 97, 238, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        transform: translateY(-3px);
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin: 0.5rem 0;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .data-table {
+        margin: 0;
+    }
+    
+    .data-table th {
+        background: #f8f9fa;
+        border-bottom: 2px solid #e9ecef;
+        color: #495057;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+    }
+    
+    .data-table td {
+        max-width: 500px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+        padding: 1rem;
+        border-color: #e9ecef;
+    }
+    
+    .data-table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .data-table tbody tr:hover {
+        background-color: rgba(67, 97, 238, 0.05);
+        transform: translateX(5px);
+    }
+    
+    .text-cell {
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .text-cell:hover::after {
+        content: "Click to expand";
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--primary-color);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        opacity: 0.9;
+    }
+    
+    .expanded {
+        white-space: normal;
+        max-width: none;
+    }
+    
+    .pagination {
+        margin-top: 2rem;
+    }
+    
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 0.25rem;
+        border: none;
+        background: #f8f9fa;
+        color: var(--primary-color);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    .pagination .active .page-link {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .summary-card {
+        border-left: 4px solid var(--primary-color);
+        background: linear-gradient(to right, rgba(67, 97, 238, 0.1), transparent);
+        border-radius: 0 15px 15px 0;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="display-5 mb-2">Client Data Viewer</h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-file-csv me-2"></i>{{ filename }}
+                    </p>
+                </div>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Home
+                </a>
+            </div>
+
+            <!-- Data Statistics -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="metric-card p-4 text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-comments me-2"></i>Total Conversations
+                        </div>
+                        <div class="metric-value">{{ data|length }}</div>
+                        <div class="text-muted">Data points</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card p-4 text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-text-width me-2"></i>Average Length
+                        </div>
+                        <div class="metric-value">
+                            {% set total_length = 0 %}
+                            {% for item in data %}
+                                {% set total_length = total_length + (item.text|string|length) %}
+                            {% endfor %}
+                            {% if data|length > 0 %}
+                                {{ (total_length / data|length)|round|int }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                        <div class="text-muted">Characters per conversation</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="metric-card p-4 text-center">
+                        <div class="metric-label">
+                            <i class="fas fa-database me-2"></i>File Size
+                        </div>
+                        <div class="metric-value">{{ (data|length * 100)|filesizeformat }}</div>
+                        <div class="text-muted">Total data volume</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Summary -->
+            <div class="summary-card mb-4">
+                <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Data Summary</h5>
+                <p class="mb-0">
+                    Displaying the first 100 conversations from <strong>{{ filename }}</strong>. 
+                    This dataset will be used to train the federated learning model. Each conversation 
+                    contributes to the model's understanding of language patterns while maintaining data privacy.
+                </p>
+            </div>
+
+            <!-- Data Table -->
+            <div class="data-card">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-table me-2"></i>Conversation Data
+                        </h5>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="expandAll">
+                                <i class="fas fa-expand-alt me-2"></i>Expand All
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="collapseAll">
+                                <i class="fas fa-compress-alt me-2"></i>Collapse All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <div class="table-responsive">
+                        <table class="table data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 80px">#</th>
+                                    <th>Text</th>
+                                    <th style="width: 120px">Length</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in data %}
+                                <tr>
+                                    <td class="text-muted">{{ loop.index }}</td>
+                                    <td class="text-cell" data-toggle="tooltip" title="Click to expand">{{ row.text }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ row.text|length }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="card-footer bg-white border-top-0">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#" tabindex="-1">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous
+                                </a>
+                            </li>
+                            <li class="page-item active">
+                                <a class="page-link" href="#">1</a>
+                            </li>
+                            <li class="page-item disabled">
+                                <a class="page-link" href="#">
+                                    Next<i class="fas fa-chevron-right ms-1"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handler to expand/collapse text cells
+    document.querySelectorAll('.text-cell').forEach(cell => {
+        cell.addEventListener('click', function() {
+            this.classList.toggle('expanded');
+            
+            // Toggle between ellipsis and normal text
+            if (this.classList.contains('expanded')) {
+                this.style.whiteSpace = 'normal';
+                this.style.maxWidth = 'none';
+                this.style.wordBreak = 'break-word';
+            } else {
+                this.style.whiteSpace = 'nowrap';
+                this.style.maxWidth = '500px';
+                this.style.wordBreak = 'normal';
+            }
+        });
+    });
+    
+    // Expand all button
+    document.getElementById('expandAll').addEventListener('click', function() {
+        document.querySelectorAll('.text-cell').forEach(cell => {
+            cell.classList.add('expanded');
+            cell.style.whiteSpace = 'normal';
+            cell.style.maxWidth = 'none';
+            cell.style.wordBreak = 'break-word';
+        });
+    });
+    
+    // Collapse all button
+    document.getElementById('collapseAll').addEventListener('click', function() {
+        document.querySelectorAll('.text-cell').forEach(cell => {
+            cell.classList.remove('expanded');
+            cell.style.whiteSpace = 'nowrap';
+            cell.style.maxWidth = '500px';
+            cell.style.wordBreak = 'normal';
+        });
+    });
+});
+</script>
+{% endblock %}

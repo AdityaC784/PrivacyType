@@ -1,0 +1,40 @@
+# Model files and directories
+models/
+*.h5
+*.pkl
+
+# Generated data and logs
+visualizations/
+training_logs.json
+*.log
+
+# Environment and system files
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+env/
+.env
+
+# Data files
+client_data/
+*.csv
+*.xlsx
+*.xls
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Local development settings
+local_settings.py 

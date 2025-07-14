@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Make Predictions - Federated Learning System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .prediction-card {
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .prediction-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .prediction-word {
+        font-size: 1.2em;
+        font-weight: 500;
+        color: var(--primary-color);
+    }
+    
+    .prediction-badge {
+        font-size: 0.9em;
+        padding: 0.5em 1em;
+        border-radius: 2rem;
+    }
+    
+    .quick-action {
+        border-radius: 10px;
+        padding: 0.6rem 1.2rem;
+        margin: 0.3rem;
+        transition: all 0.3s ease;
+        border: 2px solid var(--primary-color);
+        font-weight: 500;
+    }
+    
+    .quick-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .input-area {
+        border-radius: 15px;
+        border: 2px solid #e9ecef;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .input-area:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.25);
+    }
+    
+    .tip-card {
+        border-left: 4px solid var(--primary-color);
+        background: linear-gradient(to right, rgba(67, 97, 238, 0.1), transparent);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 0 15px 15px 0;
+    }
+    
+    .predictions-list .list-group-item {
+        border: none;
+        background: #f8f9fa;
+        margin-bottom: 0.5rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .predictions-list .list-group-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="display-5 mb-3">Word Prediction</h1>
+                <p class="lead text-muted">
+                    Enter your text and let our federated learning model predict the next word
+                </p>
+            </div>
+            
+            <!-- Main Prediction Card -->
+            <div class="card prediction-card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-magic me-2"></i>Make a Prediction
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="prediction-form">
+                        <div class="mb-4">
+                            <label for="text" class="form-label h6">
+                                <i class="fas fa-pencil-alt me-2"></i>Enter Your Text
+                            </label>
+                            <textarea class="form-control input-area" 
+                                      id="text" 
+                                      name="text" 
+                                      rows="4" 
+                                      placeholder="Type some text to get word predictions..."
+                                      required>{{ text if text else '' }}</textarea>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                For best results, enter a complete phrase or sentence
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-bolt me-2"></i>Generate Predictions
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if predictions %}
+                        <div class="mt-5">
+                            <h6 class="mb-3">
+                                <i class="fas fa-star me-2"></i>Top Predictions
+                            </h6>
+                            <div class="list-group predictions-list">
+                                {% for word, prob in predictions %}
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span class="prediction-word">
+                                            <i class="fas fa-arrow-right me-2"></i>{{ word }}
+                                        </span>
+                                        <span class="badge bg-primary prediction-badge">
+                                            {{ "%.2f"|format(prob * 100) }}%
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">
+                                <i class="fas fa-bolt me-2"></i>Quick Actions
+                            </h6>
+                            <div class="d-flex flex-wrap">
+                                {% for word, _ in predictions[:3] %}
+                                    <button type="button" 
+                                            class="btn btn-outline-primary quick-action"
+                                            data-word="{{ word }}">
+                                        <i class="fas fa-plus me-2"></i>Add "{{ word }}"
+                                    </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card prediction-card">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Tips for Better Predictions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="tip-card">
+                        <h6 class="mb-2"><i class="fas fa-book me-2"></i>Context Matters</h6>
+                        <p class="mb-0 text-muted">The model works best with complete phrases or sentences that provide clear context.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h6 class="mb-2"><i class="fas fa-text-width me-2"></i>Length Guidelines</h6>
+                        <p class="mb-0 text-muted">Aim for at least 3-4 words to give the model enough context for accurate predictions.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h6 class="mb-2"><i class="fas fa-spell-check me-2"></i>Punctuation</h6>
+                        <p class="mb-0 text-muted">Include proper punctuation and formatting for more natural and accurate predictions.</p>
+                    </div>
+                    <div class="tip-card">
+                        <h6 class="mb-2"><i class="fas fa-database me-2"></i>Training Data</h6>
+                        <p class="mb-0 text-muted">Remember that predictions are influenced by the style and content of your training data.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quick action buttons
+    document.querySelectorAll('.quick-action').forEach(button => {
+        button.addEventListener('click', function() {
+            const word = this.dataset.word;
+            const textarea = document.getElementById('text');
+            const currentText = textarea.value;
+            
+            // Add space if needed
+            const space = currentText.endsWith(' ') ? '' : ' ';
+            textarea.value = currentText + space + word;
+            
+            // Focus and trigger prediction
+            textarea.focus();
+            document.getElementById('prediction-form').submit();
+        });
+    });
+    
+    // Initialize tooltips - fixed for Bootstrap 5
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
